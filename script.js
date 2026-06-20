@@ -827,23 +827,45 @@ Kamu selalu dicintai. 🌸`;
   }
 
   /* ==========================================================
-     MODULE 16: BRUTAL GRID INTERACTION
+     MODULE 16: REASONS CAROUSEL
      ========================================================== */
-  function initBrutalGrid() {
-    const cards = document.querySelectorAll('.brutal-card');
-    cards.forEach((card) => {
-      card.addEventListener('click', () => {
-        // Toggle the flipped class for touch devices
-        card.classList.toggle('flipped');
-      });
-      
-      // Allow enter key to flip card for accessibility
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          card.classList.toggle('flipped');
+  function initCarousel() {
+    const cards = document.querySelectorAll('.carousel-card');
+    const nextBtn = document.getElementById('next-reason');
+    const prevBtn = document.getElementById('prev-reason');
+    const currentNum = document.getElementById('current-slide');
+    const finishBtn = document.getElementById('finish-reasons-btn');
+    
+    if (!cards.length || !nextBtn || !prevBtn) return;
+    
+    let currentIndex = 0;
+    
+    function updateCarousel() {
+      cards.forEach((card, index) => {
+        if (index === currentIndex) {
+          card.classList.add('active');
+        } else {
+          card.classList.remove('active');
         }
       });
+      
+      currentNum.textContent = currentIndex + 1;
+      
+      if (currentIndex === cards.length - 1) {
+        finishBtn.style.display = 'inline-block';
+        finishBtn.classList.remove('hidden');
+        finishBtn.style.opacity = '1';
+      }
+    }
+    
+    nextBtn.addEventListener('click', () => {
+      currentIndex = (currentIndex + 1) % cards.length;
+      updateCarousel();
+    });
+    
+    prevBtn.addEventListener('click', () => {
+      currentIndex = (currentIndex - 1 + cards.length) % cards.length;
+      updateCarousel();
     });
   }
 
@@ -867,7 +889,7 @@ Kamu selalu dicintai. 🌸`;
     initHeroParallax();
     initLightbox();
     initRipple();
-    initBrutalGrid();
+    initCarousel();
   }
 
   if (document.readyState === 'loading') {

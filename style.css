@@ -8,19 +8,19 @@
 
 /* ---- 2. CUSTOM PROPERTIES ---- */
 :root {
-  /* Y2K Brutalism Palette */
-  --blue:         #2B52EE;
-  --blue-dark:    #1A3AD4;
-  --blue-light:   #5B7FF5;
-  --pink:         #FF79C6;
-  --pink-dark:    #E040A0;
-  --pink-light:   #FFB3E1;
-  --yellow:       #FFE500;
-  --yellow-dark:  #F0C000;
+  /* Soft Pastel Palette */
+  --blue:         #F7B6C8; /* Primary Pink */
+  --blue-dark:    #FFF8FA; /* Background */
+  --blue-light:   #FF8FB1; /* Secondary Pink */
+  --pink:         #FF8FB1; /* Secondary Pink */
+  --pink-dark:    #F7B6C8; /* Primary Pink */
+  --pink-light:   #FFF8FA; /* Background */
+  --yellow:       #FF8FB1; /* Secondary Pink */
+  --yellow-dark:  #F7B6C8; /* Primary Pink */
   --white:        #FFFFFF;
-  --off-white:    #F0F4FF;
-  --black:        #0A0A0A;
-  --grid:         rgba(255,255,255,0.12);
+  --off-white:    #FFF8FA;
+  --black:        #5B4B52; /* Text */
+  --grid:         rgba(91, 75, 82, 0.05);
 
   /* Brutalism tokens */
   --border:         3px solid var(--black);
@@ -1773,16 +1773,46 @@ body:has(.polaroid-card:hover) .cursor-ring {
 }
 
 .wishes-modal-content {
-  background: var(--off-white);
+  background: #FFFDE7; /* Soft yellow sticky note color */
   max-width: 500px;
   width: 100%;
-  border-top: 6px solid var(--pink);
-  transform: translateY(0);
+  border: 2px solid var(--black);
+  box-shadow: 6px 6px 0 rgba(0,0,0,0.15);
+  transform: translateY(0) rotate(-1deg);
   transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 4px;
+}
+
+/* Scrollbar styling for the note */
+.wishes-modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+.wishes-modal-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.wishes-modal-content::-webkit-scrollbar-thumb {
+  background: var(--pink-dark);
+  border-radius: 4px;
+}
+
+.note-tape {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%) rotate(2deg);
+  width: 120px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0,0,0,0.1);
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+  z-index: 10;
 }
 
 .wishes-modal.hidden .wishes-modal-content {
-  transform: translateY(50px);
+  transform: translateY(50px) rotate(0deg);
 }
 
 .wishes-body {
@@ -1803,18 +1833,89 @@ body:has(.polaroid-card:hover) .cursor-ring {
 }
 
 .wishes-text {
-  font-family: var(--font-body);
-  font-size: 1.05rem;
+  font-family: 'Dancing Script', cursive;
+  font-size: 1.4rem;
   font-weight: 600;
   color: var(--black);
-  line-height: 1.6;
-  background: var(--white);
-  padding: 20px;
-  border: 3px dashed var(--black);
-  box-shadow: 4px 4px 0 var(--yellow);
+  line-height: 1.5;
   text-align: left;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 10px 0;
+}
+
+/* ============================================================
+   REASONS CAROUSEL (Swipe Card)
+   ============================================================ */
+.carousel-container {
+  max-width: 500px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  z-index: 10;
+}
+.carousel-track {
+  position: relative;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.carousel-card {
+  position: absolute;
+  width: 100%;
+  background: var(--white);
+  border: 4px solid var(--black);
+  box-shadow: 8px 8px 0 var(--pink-dark);
+  padding: 50px 20px 30px;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.9) translateY(20px);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border-radius: var(--radius-sm);
+}
+.carousel-card.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1) translateY(0);
+  z-index: 2;
+}
+.carousel-num {
+  font-family: var(--font-display);
+  font-size: 4.5rem;
+  font-weight: 800;
+  color: var(--pink-dark);
+  -webkit-text-stroke: 2px var(--black);
+  text-shadow: 3px 3px 0 var(--yellow);
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.carousel-text {
+  font-family: var(--font-body);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--black);
+  line-height: 1.4;
+}
+.carousel-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--off-white);
+  border: 3px solid var(--black);
+  padding: 10px;
+  box-shadow: 4px 4px 0 var(--black);
+  border-radius: var(--radius-sm);
+}
+.carousel-indicator {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: var(--black);
 }
 
