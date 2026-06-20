@@ -599,12 +599,9 @@ Kamu selalu dicintai. 🌸`;
           if (entry.isIntersecting && autoLaunched === 0) {
             animate();
             autoLaunched = 1;
-            let count = 0;
-            const interval = setInterval(() => {
+            setInterval(() => {
               randomBurst();
-              count++;
-              if (count >= 6) clearInterval(interval);
-            }, 600);
+            }, 1000); // Tembakkan kembang api tiap 1 detik terus-menerus
           }
         });
       },
@@ -612,16 +609,6 @@ Kamu selalu dicintai. 🌸`;
     );
     const finale = document.getElementById('finale');
     if (finale) finaleObs.observe(finale);
-
-    // Manual trigger button
-    const btn = document.getElementById('firework-btn');
-    if (btn) {
-      btn.addEventListener('click', () => {
-        for (let i = 0; i < 4; i++) {
-          setTimeout(randomBurst, i * 300);
-        }
-      });
-    }
   }
 
   /* ==========================================================
