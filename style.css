@@ -209,7 +209,7 @@ img { max-width: 100%; display: block; }
 .download-container {
   max-width: 500px;
   margin: 0 auto;
-  background: var(--off-white);
+  background: var(--white);
   padding: 0;
   text-align: left;
 }
@@ -255,7 +255,6 @@ img { max-width: 100%; display: block; }
   height: 100%;
   background: var(--yellow);
   border-right: 3px solid var(--black);
-  transition: width 0.1s linear;
 }
 
 /* Brutalist button override for download */
