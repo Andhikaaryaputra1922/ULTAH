@@ -1185,17 +1185,14 @@ img { max-width: 100%; display: block; }
    FLOATING SPOTIFY / MUSIC PLAYER
    ============================================================ */
 .spotify-player {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: -9999;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-  opacity: 0;
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0.01;
   pointer-events: none !important;
-  visibility: hidden;
 }
 
 .spotify-toggle {
@@ -1724,6 +1721,12 @@ body:has(.polaroid-card:hover) .cursor-ring {
   .finale-actions { flex-direction: column; align-items: center; }
   .reason-item { padding: 12px 14px; gap: 10px; }
   .spotify-player { bottom: 16px; right: 16px; }
+  
+  /* Mobile Carousel & Modal Font Adjustments */
+  .carousel-num { font-size: 3rem; top: -25px; }
+  .carousel-text { font-size: 1.15rem; line-height: 1.5; }
+  .carousel-card { padding: 35px 15px 20px; }
+  .wishes-text { font-size: 1.25rem; }
 }
 
 @media (max-width: 380px) {
