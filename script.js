@@ -7,25 +7,135 @@
   'use strict';
 
   /* ==========================================================
-     MODULE 1: SCROLL REVEAL (IntersectionObserver)
+     MODULE 1: LOCK SCREEN & STORY MODE
      ========================================================== */
-  function initScrollReveal() {
-    const revealEls = document.querySelectorAll('.reveal-fade, .reveal-up, .reveal-side');
+  const CORRECT_PIN = "216004";
+  
+  function initLockScreen() {
+    const lockScreen = document.getElementById('lock-screen');
+    const dots = document.querySelectorAll('.dot');
+    const numBtns = document.querySelectorAll('.num-btn');
+    const errorMsg = document.getElementById('lock-error');
+    
+    let currentPin = "";
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-            // Stop observing once revealed for performance
-            observer.unobserve(entry.target);
+    function updateDots() {
+      dots.forEach((dot, index) => {
+        if (index < currentPin.length) {
+          dot.classList.add('filled');
+        } else {
+          dot.classList.remove('filled');
+        }
+      });
+    }
+
+    function checkPin() {
+      if (currentPin === CORRECT_PIN) {
+        lockScreen.classList.add('unlocked');
+        setTimeout(() => {
+          lockScreen.style.display = 'none';
+          // Start the story!
+          initStoryMode();
+          // Start music now that user has interacted
+          const iframe = document.getElementById('spotify-iframe');
+          if (iframe) {
+            iframe.src = iframe.src.replace('autoplay=0', 'autoplay=1');
           }
-        });
-      },
-      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
-    );
+        }, 500);
+      } else {
+        errorMsg.classList.remove('hidden');
+        currentPin = "";
+        updateDots();
+        setTimeout(() => errorMsg.classList.add('hidden'), 2000);
+      }
+    }
 
-    revealEls.forEach((el) => observer.observe(el));
+    numBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.val;
+        if (val === 'clear') {
+          currentPin = "";
+        } else if (val === 'del') {
+          currentPin = currentPin.slice(0, -1);
+        } else {
+          if (currentPin.length < 6) {
+            currentPin += val;
+          }
+        }
+        updateDots();
+        if (currentPin.length === 6) {
+          checkPin();
+        }
+      });
+    });
+  }
+
+  function initStoryMode() {
+    const scenes = document.querySelectorAll('.scene');
+    const progressContainer = document.getElementById('story-progress');
+    const uiContainer = document.getElementById('story-ui');
+    
+    if (scenes.length === 0) return;
+    uiContainer.classList.remove('hidden');
+
+    let currentIndex = 0;
+    
+    // Create progress bars
+    progressContainer.innerHTML = '';
+    scenes.forEach((_, i) => {
+      const barBg = document.createElement('div');
+      barBg.className = 'story-bar-bg';
+      const barFill = document.createElement('div');
+      barFill.className = 'story-bar-fill';
+      barFill.id = `story-fill-${i}`;
+      barBg.appendChild(barFill);
+      progressContainer.appendChild(barBg);
+    });
+
+    function showScene(index) {
+      if (index < 0 || index >= scenes.length) return;
+
+      // Hide all scenes
+      scenes.forEach((scene, i) => {
+        scene.classList.remove('active');
+        const fill = document.getElementById(`story-fill-${i}`);
+        fill.style.transition = 'width 0.3s ease';
+        if (i < index) fill.style.width = '100%';
+        else if (i > index) fill.style.width = '0%';
+        
+        // Add 'visible' class to internal elements so animations trigger
+        const reveals = scene.querySelectorAll('.reveal-fade, .reveal-up, .reveal-side, .reveal-zoom');
+        reveals.forEach(r => r.classList.remove('visible'));
+      });
+
+      // Show current scene
+      const currentScene = scenes[index];
+      currentScene.classList.add('active');
+      const reveals = currentScene.querySelectorAll('.reveal-fade, .reveal-up, .reveal-side, .reveal-zoom');
+      setTimeout(() => reveals.forEach(r => r.classList.add('visible')), 100);
+
+      // Animate progress bar for current scene
+      const activeFill = document.getElementById(`story-fill-${index}`);
+      activeFill.style.width = '100%';
+    }
+
+    // Expose nextScene globally so buttons can call it
+    window.nextScene = function() {
+      if (currentIndex < scenes.length - 1) {
+        currentIndex++;
+        showScene(currentIndex);
+      }
+    };
+
+    window.prevScene = function() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        showScene(currentIndex);
+      }
+    };
+
+    // Start
+    showScene(currentIndex);
   }
 
   /* ==========================================================
@@ -297,107 +407,113 @@ Kamu selalu dicintai. 🌸`;
   }
 
   /* ==========================================================
-     MODULE 8: CANDLE BLOWOUT + CONFETTI
+     MODULE 8: INTERACTIVE CANDLE (MICROPHONE BLOW)
      ========================================================== */
-  function initCandle() {
-    const blowBtn   = document.getElementById('blow-btn');
-    const flameGrp  = document.getElementById('flame-group');
-    const smoke     = document.getElementById('smoke');
-    const wishMsg   = document.getElementById('wish-message');
-    const canvas    = document.getElementById('confetti-canvas');
-    if (!blowBtn || !canvas) return;
+  /* ==========================================================
+     MODULE 8: DOWNLOAD KADO (BRUTALISM PROGRESS BAR)
+     ========================================================== */
+  function initDownloadGift() {
+    const btn = document.getElementById('download-btn');
+    const area = document.getElementById('download-progress-area');
+    const text = document.getElementById('progress-text');
+    const fill = document.getElementById('progress-bar-fill');
+    const wishesModal = document.getElementById('wishes-modal');
+    const closeWishesBtn = document.getElementById('close-wishes-btn');
+    const finaleActions = document.getElementById('finale-actions');
+    const confettiCanvas = document.getElementById('confetti-canvas');
+    let ctx, w, h, particles = [];
+    let isDownloading = false;
 
-    const ctx = canvas.getContext('2d');
-    let confettiParticles = [];
-    let confettiAnim = null;
+    if (!btn || !area || !text || !fill || !wishesModal) return;
 
-    function resizeCanvas() {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+    if (confettiCanvas) {
+      ctx = confettiCanvas.getContext('2d');
+      w = confettiCanvas.width = window.innerWidth;
+      h = confettiCanvas.height = window.innerHeight;
+      window.addEventListener('resize', () => {
+        w = confettiCanvas.width = window.innerWidth;
+        h = confettiCanvas.height = window.innerHeight;
+      });
     }
 
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    const CONFETTI_COLORS = ['#f06292','#ce93d8','#f9a825','#80deea','#fff9c4','#f48fb1','#b39ddb'];
-
-    function createConfetti(count) {
-      confettiParticles = [];
-      for (let i = 0; i < count; i++) {
-        confettiParticles.push({
-          x:     canvas.width  / 2 + (Math.random() - 0.5) * 200,
-          y:     canvas.height * 0.35,
-          vx:    (Math.random() - 0.5) * 14,
-          vy:    -8 - Math.random() * 10,
-          size:  4 + Math.random() * 8,
-          color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-          alpha: 1,
-          shape: Math.random() > 0.5 ? 'rect' : 'circle',
-          rot:   Math.random() * Math.PI * 2,
-          rotV:  (Math.random() - 0.5) * 0.2,
-          gravity: 0.3 + Math.random() * 0.2,
+    function createConfetti() {
+      const colors = ['#2B52EE', '#FF79C6', '#FFE500', '#FFFFFF'];
+      for (let i = 0; i < 150; i++) {
+        particles.push({
+          x: w / 2,
+          y: h / 2,
+          vx: (Math.random() - 0.5) * 20,
+          vy: (Math.random() - 1) * 20 - 5,
+          size: Math.random() * 10 + 6,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rot: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 10
         });
       }
     }
 
-    function animateConfetti() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      let alive = false;
-      confettiParticles.forEach((p) => {
-        p.x   += p.vx;
-        p.y   += p.vy;
-        p.vy  += p.gravity;
-        p.vx  *= 0.99;
-        p.rot += p.rotV;
-        p.alpha = Math.max(0, p.alpha - 0.008);
-        if (p.alpha > 0) alive = true;
-
+    function drawConfetti() {
+      if (!ctx || particles.length === 0) return;
+      ctx.clearRect(0, 0, w, h);
+      particles.forEach((p, i) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.5; // gravity
+        p.rot += p.rotSpeed;
+        
         ctx.save();
-        ctx.globalAlpha = p.alpha;
-        ctx.fillStyle   = p.color;
         ctx.translate(p.x, p.y);
-        ctx.rotate(p.rot);
-        if (p.shape === 'circle') {
-          ctx.beginPath();
-          ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
-        }
+        ctx.rotate(p.rot * Math.PI / 180);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#0A0A0A';
+        ctx.strokeRect(-p.size/2, -p.size/2, p.size, p.size);
         ctx.restore();
+
+        if (p.y > h + 50) particles.splice(i, 1);
       });
-      if (alive) confettiAnim = requestAnimationFrame(animateConfetti);
-      else ctx.clearRect(0, 0, canvas.width, canvas.height);
+      requestAnimationFrame(drawConfetti);
     }
 
-    blowBtn.addEventListener('click', () => {
-      blowBtn.disabled = true;
-      blowBtn.setAttribute('aria-label', 'Lilin sudah ditiup');
+    btn.addEventListener('click', () => {
+      if (isDownloading) return;
+      isDownloading = true;
 
-      // Blow out flame
-      if (flameGrp) {
-        flameGrp.classList.add('extinguished');
-      }
+      btn.style.display = 'none';
+      area.classList.remove('hidden');
 
-      // Show smoke
-      if (smoke) {
-        smoke.classList.remove('hidden');
-      }
+      let progress = 0;
+      const interval = setInterval(() => {
+        // Randomize download speed for realism
+        progress += Math.floor(Math.random() * 5) + 1;
+        if (progress > 100) progress = 100;
+        
+        fill.style.width = progress + '%';
+        text.textContent = `Memproses: ${progress}%`;
 
-      // Launch confetti
-      setTimeout(() => {
-        createConfetti(500);
-        if (confettiAnim) cancelAnimationFrame(confettiAnim);
-        animateConfetti();
+        if (progress === 100) {
+          clearInterval(interval);
+          setTimeout(() => {
+            text.textContent = 'SELESAI!';
+            setTimeout(() => {
+              wishesModal.classList.remove('hidden');
+              createConfetti();
+              drawConfetti();
+            }, 500);
+          }, 500);
+        }
+      }, 80);
+    });
 
-        // Show wish message
-        setTimeout(() => {
-          if (wishMsg) {
-            wishMsg.classList.remove('hidden');
-            blowBtn.classList.add('hidden');
-          }
-        }, 600);
-      }, 500);
+    closeWishesBtn.addEventListener('click', () => {
+      wishesModal.classList.add('hidden');
+      area.style.display = 'none';
+      if (finaleActions) finaleActions.classList.remove('hidden');
+      
+      // Auto-click next scene if we want, or leave it to the user.
+      // Since it says "Tutup & Lanjut ->", we should proceed to the next scene.
+      window.nextScene();
     });
   }
 
@@ -509,108 +625,249 @@ Kamu selalu dicintai. 🌸`;
   }
 
   /* ==========================================================
-     MODULE 10: WEB AUDIO BIRTHDAY MELODY
+     MODULE 10: SPOTIFY FLOATING PLAYER TOGGLE
      ========================================================== */
-  function initMusic() {
-    const btn   = document.getElementById('music-btn');
-    const label = document.getElementById('music-label');
-    if (!btn) return;
+  function initSpotifyPlayer() {
+    const toggleBtn = document.getElementById('spotify-toggle');
+    const panel     = document.getElementById('spotify-panel');
+    const closeBtn  = document.getElementById('spotify-close');
+    if (!toggleBtn || !panel) return;
 
-    let audioCtx = null;
-    let playing  = false;
-    let scheduleId = null;
+    let isOpen = false;
 
-    // Happy Birthday notes (simplified melody in C major)
-    // Format: [note_hz, duration_beats]
-    const C4 = 261.63, D4 = 293.66, E4 = 329.63, F4 = 349.23,
-          G4 = 392.00, A4 = 440.00, B4 = 493.88, C5 = 523.25,
-          D5 = 587.33, F5 = 698.46, G5 = 783.99;
-
-    const MELODY = [
-      [C4, 0.75], [C4, 0.25], [D4, 1],   [C4, 1],   [F4, 1],   [E4, 2],
-      [C4, 0.75], [C4, 0.25], [D4, 1],   [C4, 1],   [G4, 1],   [F4, 2],
-      [C4, 0.75], [C4, 0.25], [C5, 1],   [A4, 1],   [F4, 1],   [E4, 1], [D4, 2],
-      [B4, 0.75], [B4, 0.25], [A4, 1],   [F4, 1],   [G4, 1],   [F4, 2],
-    ];
-
-    const BPM    = 90;
-    const BEAT   = 60 / BPM; // seconds per beat
-
-    function playNote(ctx, freq, startTime, duration) {
-      if (!freq) return;
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.type      = 'triangle';
-      osc.frequency.setValueAtTime(freq, startTime);
-
-      // Soft envelope
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.18, startTime + 0.04);
-      gain.gain.setValueAtTime(0.18, startTime + duration * BEAT - 0.08);
-      gain.gain.linearRampToValueAtTime(0, startTime + duration * BEAT);
-
-      osc.start(startTime);
-      osc.stop(startTime + duration * BEAT + 0.01);
+    function openPanel() {
+      isOpen = true;
+      panel.classList.add('open');
+      panel.setAttribute('aria-hidden', 'false');
+      toggleBtn.setAttribute('aria-expanded', 'true');
+      toggleBtn.querySelector('.spotify-toggle-label').textContent = 'Tutup';
     }
 
-    function scheduleLoop(ctx, loopStart) {
-      let t = loopStart;
-      MELODY.forEach(([freq, beats]) => {
-        playNote(ctx, freq, t, beats);
-        t += beats * BEAT;
-      });
-      // Schedule next loop
-      const loopDuration = MELODY.reduce((s, [, b]) => s + b, 0) * BEAT;
-      scheduleId = setTimeout(() => {
-        if (playing) scheduleLoop(ctx, ctx.currentTime + 0.05);
-      }, (loopDuration - 0.1) * 1000);
+    function closePanel() {
+      isOpen = false;
+      panel.classList.remove('open');
+      panel.setAttribute('aria-hidden', 'true');
+      toggleBtn.setAttribute('aria-expanded', 'false');
+      toggleBtn.querySelector('.spotify-toggle-label').textContent = 'Backsound';
     }
 
-    function startMusic() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      playing = true;
-      scheduleLoop(audioCtx, audioCtx.currentTime + 0.1);
-      btn.setAttribute('aria-pressed', 'true');
-      if (label) label.textContent = 'Hentikan Musik';
+    toggleBtn.addEventListener('click', () => {
+      if (isOpen) closePanel();
+      else openPanel();
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closePanel);
     }
 
-    function stopMusic() {
-      playing = false;
-      if (scheduleId) clearTimeout(scheduleId);
-      if (audioCtx) {
-        audioCtx.suspend();
-      }
-      btn.setAttribute('aria-pressed', 'false');
-      if (label) label.textContent = 'Putar Musik';
-    }
+    // Auto-open the panel after 2s on first visit (subtle hint)
+    setTimeout(() => {
+      if (!isOpen) openPanel();
+    }, 2000);
+  }
 
-    btn.addEventListener('click', () => {
-      if (playing) stopMusic();
-      else startMusic();
+  /* ==========================================================
+     MODULE 11: CUSTOM CURSOR
+     ========================================================== */
+  function initCustomCursor() {
+    // Don't run on touch-only devices
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+
+    const dot  = document.createElement('div');
+    const ring = document.createElement('div');
+    dot.className  = 'cursor-dot';
+    ring.className = 'cursor-ring';
+    document.body.appendChild(dot);
+    document.body.appendChild(ring);
+
+    let mouseX = -100, mouseY = -100;
+    let ringX  = -100, ringY  = -100;
+
+    document.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      dot.style.left = mouseX + 'px';
+      dot.style.top  = mouseY + 'px';
+    });
+
+    // Ring follows with lag
+    function animateRing() {
+      ringX += (mouseX - ringX) * 0.12;
+      ringY += (mouseY - ringY) * 0.12;
+      ring.style.left = ringX + 'px';
+      ring.style.top  = ringY + 'px';
+      requestAnimationFrame(animateRing);
+    }
+    animateRing();
+
+    // Hide cursor when leaving window
+    document.addEventListener('mouseleave', () => {
+      dot.style.opacity = '0';
+      ring.style.opacity = '0';
+    });
+    document.addEventListener('mouseenter', () => {
+      dot.style.opacity = '1';
+      ring.style.opacity = '1';
     });
   }
 
   /* ==========================================================
-     INIT ALL MODULES
+     MODULE 12: CLICK BURST (REMOVED - EMOJI FREE)
+     ========================================================== */
+  function initClickBurst() {
+    // Feature disabled as requested to remove emoji background effects
+  }
+
+  /* ==========================================================
+     MODULE 13: MOUSE PARALLAX ON HERO
+     ========================================================== */
+  function initHeroParallax() {
+    const hero    = document.getElementById('hero');
+    const name    = document.getElementById('hero-name');
+    const sub     = document.getElementById('hero-subtitle');
+    const forEl   = document.getElementById('hero-for');
+    if (!hero || !name) return;
+
+    hero.addEventListener('mousemove', (e) => {
+      const rect = hero.getBoundingClientRect();
+      const cx   = rect.width  / 2;
+      const cy   = rect.height / 2;
+      const dx   = (e.clientX - rect.left - cx) / cx; // -1 to 1
+      const dy   = (e.clientY - rect.top  - cy) / cy;
+
+      name.style.transform  = `translate(${dx * -14}px, ${dy * -8}px)`;
+      if (sub)   sub.style.transform   = `translate(${dx * -8}px, ${dy * -5}px)`;
+      if (forEl) forEl.style.transform = `translate(${dx * -5}px, ${dy * -3}px)`;
+    });
+
+    hero.addEventListener('mouseleave', () => {
+      name.style.transform  = '';
+      if (sub)   sub.style.transform   = '';
+      if (forEl) forEl.style.transform = '';
+    });
+  }
+
+  /* ==========================================================
+     MODULE 14: POLAROID LIGHTBOX
+     ========================================================== */
+  function initLightbox() {
+    const cards = document.querySelectorAll('.polaroid-card');
+
+    function openLightbox(imgSrc, captionHTML) {
+      // Block scroll
+      document.body.style.overflow = 'hidden';
+
+      const overlay = document.createElement('div');
+      overlay.className = 'lightbox-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', 'Foto diperbesar');
+
+      overlay.innerHTML = `
+        <button class="lightbox-close" aria-label="Tutup foto">✕</button>
+        <div class="lightbox-inner">
+          <img class="lightbox-img" src="${imgSrc}" alt="Foto kenangan" />
+          <p class="lightbox-caption">${captionHTML}</p>
+        </div>`;
+
+      document.body.appendChild(overlay);
+
+      // Close on overlay click or close button
+      function closeLightbox() {
+        overlay.style.animation = 'lightboxIn 0.25s reverse forwards';
+        setTimeout(() => {
+          overlay.remove();
+          document.body.style.overflow = '';
+        }, 250);
+      }
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.classList.contains('lightbox-close')) {
+          closeLightbox();
+        }
+      });
+
+      document.addEventListener('keydown', function escClose(e) {
+        if (e.key === 'Escape') {
+          closeLightbox();
+          document.removeEventListener('keydown', escClose);
+        }
+      });
+    }
+
+    cards.forEach((card) => {
+      card.addEventListener('click', () => {
+        const img     = card.querySelector('img');
+        const caption = card.querySelector('.polaroid-caption');
+        if (img) openLightbox(img.src, caption ? caption.innerHTML : '');
+      });
+    });
+  }
+
+  /* ==========================================================
+     MODULE 15: BUTTON RIPPLE EFFECT
+     ========================================================== */
+  function initRipple() {
+    const buttons = document.querySelectorAll('.cta-btn, .blow-btn, .firework-btn, .spotify-toggle, .music-btn');
+
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', function (e) {
+        const rect   = btn.getBoundingClientRect();
+        const size   = Math.max(rect.width, rect.height);
+        const x      = e.clientX - rect.left - size / 2;
+        const y      = e.clientY - rect.top  - size / 2;
+
+        const ripple = document.createElement('span');
+        ripple.className = 'ripple';
+        ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
+        btn.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      });
+    });
+  }
+
+  /* ==========================================================
+     MODULE 16: BRUTAL GRID INTERACTION
+     ========================================================== */
+  function initBrutalGrid() {
+    const cards = document.querySelectorAll('.brutal-card');
+    cards.forEach((card) => {
+      card.addEventListener('click', () => {
+        // Toggle the flipped class for touch devices
+        card.classList.toggle('flipped');
+      });
+      
+      // Allow enter key to flip card for accessibility
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          card.classList.toggle('flipped');
+        }
+      });
+    });
+  }
+
+  /* ==========================================================
+     INITIALIZATION
      ========================================================== */
   function init() {
-    initScrollReveal();
-    initHeroEntrance();
+    // initScrollReveal(); // Removed
+    // initHeroEntrance(); // Handled by story mode now
+    initLockScreen(); // Now starts everything
+    
     initSakuraCanvas();
     initAgeCounter();
-    initTypewriter();
+    // initTypewriter();
     initPolaroidTilt();
-    initPetalRain();
-    initCandle();
+    initDownloadGift();
     initFireworks();
-    initMusic();
+    initSpotifyPlayer();
+    // New interactive modules
+    initCustomCursor();
+    initHeroParallax();
+    initLightbox();
+    initRipple();
+    initBrutalGrid();
   }
 
   if (document.readyState === 'loading') {
@@ -619,3 +876,5 @@ Kamu selalu dicintai. 🌸`;
     init();
   }
 })();
+
+
